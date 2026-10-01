@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Agriculture Probe - IoT Telemetry Dashboard</title>
+  <!-- Chart.js for real-time visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts: Inter and Orbitron/VT323 for realistic LCD -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at 10% 20%, #0d1525 0%, #070a12 90%);
+      --header-bg: rgba(18, 27, 42, 0.85);
+      --card-bg: #121b2a;
+      --card-border: #1e2d44;
+      --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      --box-inner-bg: rgba(255, 255, 255, 0.03);
+      --box-inner-border: rgba(255, 255, 255, 0.06);
+      --accent-green: #10b981;
+      --accent-blue: #06b6d4;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-purple: #8b5cf6;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-heading: #ffffff;
+      --btn-sec-bg: #1e293b;
+      --btn-sec-hover: #273549;
+      --btn-sec-text: #f1f5f9;
+      --lcd-bg: #8ba870;
+      --lcd-text: #17240f;
+      --lcd-shadow: #799560;
+    }
+
+    body.light-theme {
+      --bg-gradient: radial-gradient(circle at 10% 20%, #f8fafc 0%, #eef2f6 90%);
+      --header-bg: rgba(255, 255, 255, 0.92);
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.07);
+      --box-inner-bg: #f8fafc;
+      --box-inner-border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-heading: #0f172a;
+      --btn-sec-bg: #f1f5f9;
+      --btn-sec-hover: #e2e8f0;
+      --btn-sec-text: #1e293b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    /* Top Navigation Bar */
+    header {
+      background: var(--header-bg);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+
+    .header-branding {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .project-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      object-fit: contain;
+      background: #ffffff;
+      padding: 2px;
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      flex-shrink: 0;
+    }
+
+    body.light-theme .project-logo {
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+      border-color: #cbd5e1;
+    }
+
+    .title-box h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-heading);
+      transition: color 0.3s ease;
+    }
+
+    .title-box p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.55rem 1.15rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-connect {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-connect:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      transform: translateY(-1px);
+    }
+
+    .btn-disconnect {
+      background: #334155;
+      color: #e2e8f0;
+    }
+
+    .btn-disconnect:hover {
+      background: #475569;
+    }
+
+    .btn-secondary {
+      background: var(--btn-sec-bg);
+      color: var(--btn-sec-text);
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--btn-sec-hover);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #1e293b;
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+    }
+
+    .status-dot.active {
+      background: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 1.75rem 2rem;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Grid Layouts */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+
+    @media (max-width: 1024px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Hardware LCD Replica Box */
+    .lcd-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Realistic 16x2 LCD Frame */
+    .lcd-bezel {
+      background: #1e261d;
+      border: 4px solid #141a13;
+      border-radius: 8px;
+      padding: 16px 20px;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    .lcd-screen {
+      background: var(--lcd-bg);
+      border: 2px solid var(--lcd-shadow);
+      border-radius: 4px;
+      padding: 12px 16px;
+      font-family: 'VT323', monospace;
+      color: var(--lcd-text);
+      font-size: 1.95rem;
+      line-height: 1.15;
+      letter-spacing: 2px;
+      text-shadow: 1px 1px 0px rgba(255,255,255,0.2);
+      box-shadow: inset 0 0 12px rgba(0,0,0,0.25);
+      min-height: 85px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .lcd-line {
+      white-space: pre;
+      overflow: hidden;
+      text-overflow: clip;
+      display: block;
+    }
+
+    .lcd-badge-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    /* Telemetry Info Cards (2x2 Grid for Zero Overlap) */
+    .telemetry-summary {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.65rem;
+      margin-top: 0.35rem;
+    }
+
+    .summary-box {
+      background: var(--box-inner-bg);
+      border: 1px solid var(--box-inner-border);
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      text-align: center;
+      min-width: 0;
+      overflow: hidden;
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+
+    .summary-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .summary-val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin-top: 0.2rem;
+      font-family: 'Chakra Petch', sans-serif;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.3s ease;
+    }
+
+    /* Metric Cards Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 1024px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+
+    .metric-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .metric-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .metric-badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-optimal {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-alert {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    body.light-theme .badge-optimal {
+      background: rgba(16, 185, 129, 0.12);
+      color: #059669;
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    body.light-theme .badge-alert {
+      background: rgba(239, 68, 68, 0.12);
+      color: #dc2626;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .metric-body {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .metric-number {
+      font-size: 2.5rem;
+      font-weight: 800;
+      font-family: 'Chakra Petch', sans-serif;
+      color: var(--text-heading);
+      transition: color 0.3s ease;
+    }
+
+    .metric-unit {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Analytics Charts Layout (Wide Line Chart + 50/50 Split Bar & Doughnut) */
+    .chart-wide-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+      transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .charts-split-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 1024px) {
+      .charts-split-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: var(--card-shadow);
+      transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 280px;
+      width: 100%;
+    }
+
+    /* Terminal & Log Box */
+    .terminal-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .terminal-window {
+      background: #060910;
+      border: 1px solid #1a2333;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.75rem;
+      color: #38bdf8;
+      height: 250px;
+      overflow-y: auto;
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .terminal-entry {
+      margin-bottom: 0.35rem;
+      word-break: break-all;
+    }
+
+    .terminal-entry.tx {
+      color: #34d399;
+    }
+
+    .terminal-entry.alert {
+      color: #f87171;
+    }
+
+    .terminal-entry.info {
+      color: #94a3b8;
+    }
+
+    /* Agronomic Guidance Recommendation Banner */
+    .advisory-banner {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(6, 182, 212, 0.08));
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .advisory-icon {
+      background: rgba(16, 185, 129, 0.2);
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .advisory-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--accent-green);
+    }
+
+    .advisory-text h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #34d399;
+      margin-bottom: 0.2rem;
+    }
+
+    .advisory-text p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Live Moisture Spectrum Slider */
+    .moist-spectrum-container {
+      background: var(--box-inner-bg);
+      border: 1px solid var(--box-inner-border);
+      border-radius: 12px;
+      padding: 0.9rem 1.15rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+
+    .spectrum-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .spectrum-track {
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #ef4444 0%, #ef4444 20%, #10b981 20%, #10b981 80%, #06b6d4 80%, #06b6d4 100%);
+      position: relative;
+      margin: 0.75rem 0 0.4rem 0;
+    }
+
+    .spectrum-marker {
+      position: absolute;
+      top: -5px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #10b981;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+      transform: translateX(-50%);
+      transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s ease, box-shadow 0.4s ease;
+      left: 0%;
+    }
+
+    .spectrum-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Decision Chips Row */
+    .decision-chips-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-top: 0.15rem;
+    }
+
+    .decision-chip {
+      background: var(--box-inner-bg);
+      border: 1px solid var(--box-inner-border);
+      border-radius: 8px;
+      padding: 0.55rem 0.65rem;
+      text-align: center;
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+
+    body.light-theme .advisory-banner {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(6, 182, 212, 0.08));
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    body.light-theme .card-title {
+      color: #334155;
+    }
+
+    .btn-theme {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      user-select: none;
+      font-weight: 600;
+    }
+
+
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation & Connection Header -->
+  <header>
+    <div class="header-branding">
+      <img src="logo.jpg" alt="Soil Monitoring Logo" class="project-logo">
+      <div class="title-box">
+        <h1>Soil Nutrient & Moisture Monitoring System</h1>
+      </div>
+    </div>
+
+    <div class="header-controls">
+
+      <button class="btn btn-connect" id="btnConnect">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+        Connect to Probe (COM3)
+      </button>
+
+      <button class="btn btn-secondary" id="btnExportCSV">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        Export CSV
+      </button>
+
+      <button class="btn btn-secondary btn-theme" id="btnThemeToggle" title="Switch Theme">
+        <span id="themeIcon">☀️</span> <span id="themeText">Light Mode</span>
+      </button>
+
+      <button class="btn btn-secondary" id="btnSoundToggle" title="Toggle audio chime">
+        🔔 Sound: ON
+      </button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Hero Top Section: Hardware LCD Simulation & Status Overview -->
+    <div class="hero-grid">
+
+      <!-- Physical 16x2 LCD Mirror -->
+      <div class="lcd-card">
+        <div class="card-title">
+          <span>Physical 16x2 LCD Screen Mirror</span>
+          <span style="font-size: 0.75rem; color: #34d399;">LIVE REALTIME</span>
+        </div>
+
+        <div class="lcd-bezel">
+          <div class="lcd-screen" id="lcdScreen">
+            <span class="lcd-line" id="lcdLine1">Moist:  0%  [OK]  </span>
+            <span class="lcd-line" id="lcdLine2">N:0   P:0   K:0   </span>
+          </div>
+        </div>
+
+        <div class="lcd-badge-row" style="justify-content: flex-end;">
+          <span id="loraRfIndicator" style="font-weight: 600;">LoRa Radio: STANDBY</span>
+        </div>
+
+        <!-- Telemetry Details Strip -->
+        <div class="telemetry-summary">
+          <div class="summary-box">
+            <div class="summary-label">Probe ID</div>
+            <div class="summary-val" id="probeIdVal">PROBE_01</div>
+          </div>
+          <div class="summary-box">
+            <div class="summary-label">Field Zone</div>
+            <div class="summary-val" id="zoneVal">Zone_A</div>
+          </div>
+          <div class="summary-box">
+            <div class="summary-label">Packets TX</div>
+            <div class="summary-val" id="pktCountVal">0</div>
+          </div>
+          <div class="summary-box">
+            <div class="summary-label">Health</div>
+            <div class="summary-val" id="healthVal" style="color: #34d399;">OPTIMAL</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agronomic Intelligence & Real-Time Soil Decision Engine -->
+      <div class="lcd-card" style="justify-content: space-between;">
+        <div class="card-title">
+          <span>Agronomic Intelligence & Advisory</span>
+          <span style="font-size: 0.75rem; color: #10b981;">DECISION ENGINE</span>
+        </div>
+
+        <div class="advisory-banner" style="margin: 0;">
+          <div class="advisory-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+              <path d="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2"/>
+            </svg>
+          </div>
+          <div class="advisory-text">
+            <h3 id="advisoryTitle">Agronomic Status: Optimal Conditions</h3>
+            <p id="advisoryDesc">
+              Soil moisture is within the healthy crop vegetative threshold (20% – 80%). Essential macronutrients (Nitrogen, Phosphorus, Potassium) are adequate for crop growth.
+            </p>
+          </div>
+        </div>
+
+        <!-- Dynamic Soil Moisture Spectrum Range Bar -->
+        <div class="moist-spectrum-container">
+          <div class="spectrum-header">
+            <span>Soil Moisture Agronomic Zone Spectrum</span>
+            <span id="spectrumMoistPercent" style="color: #10b981;">Current: 0%</span>
+          </div>
+          <div class="spectrum-track">
+            <div class="spectrum-marker" id="spectrumMarker"></div>
+          </div>
+          <div class="spectrum-labels">
+            <span style="color: #f87171;">DRY (&lt;20%)</span>
+            <span style="color: #34d399;">OPTIMAL (20% – 80%)</span>
+            <span style="color: #38bdf8;">WET (&gt;80%)</span>
+          </div>
+        </div>
+
+        <!-- Crop Decision Action Summary Strip -->
+        <div class="decision-chips-row">
+          <div class="decision-chip">
+            <div class="summary-label">Irrigation Status</div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #34d399; margin-top: 3px;" id="irrigationChip">NOT NEEDED</div>
+          </div>
+          <div class="decision-chip">
+            <div class="summary-label">Fertilizer Action</div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #34d399; margin-top: 3px;" id="fertilizerChip">ADEQUATE</div>
+          </div>
+          <div class="decision-chip">
+            <div class="summary-label">Soil Aeration</div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #38bdf8; margin-top: 3px;" id="aerationChip">HEALTHY</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 4 Key Agronomic Metric Cards -->
+    <div class="metrics-grid">
+      
+      <!-- Soil Moisture Card -->
+      <div class="metric-card card-moist">
+        <div class="metric-header">
+          <span class="metric-name">Soil Moisture</span>
+          <span class="metric-badge badge-optimal" id="moistBadge">NORMAL</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number" id="moistNum">0</span>
+          <span class="metric-unit">%</span>
+        </div>
+      </div>
+
+      <!-- Nitrogen Card -->
+      <div class="metric-card card-n">
+        <div class="metric-header">
+          <span class="metric-name">Nitrogen (N)</span>
+          <span class="metric-badge badge-optimal" id="nBadge">OPTIMAL</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number" id="nNum">0</span>
+          <span class="metric-unit">mg/kg</span>
+        </div>
+      </div>
+
+      <!-- Phosphorus Card -->
+      <div class="metric-card card-p">
+        <div class="metric-header">
+          <span class="metric-name">Phosphorus (P)</span>
+          <span class="metric-badge badge-optimal" id="pBadge">OPTIMAL</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number" id="pNum">0</span>
+          <span class="metric-unit">mg/kg</span>
+        </div>
+      </div>
+
+      <!-- Potassium Card -->
+      <div class="metric-card card-k">
+        <div class="metric-header">
+          <span class="metric-name">Potassium (K)</span>
+          <span class="metric-badge badge-optimal" id="kBadge">OPTIMAL</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number" id="kNum">0</span>
+          <span class="metric-unit">mg/kg</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Analytics Section: Wide Timeline Chart + Split Bar & Doughnut Charts -->
+    <div class="chart-wide-card">
+      <div class="card-title">
+        <span>Real-Time Soil Telemetry Dynamics</span>
+        <span style="font-size: 0.75rem; color: #06b6d4;">ROLLING TIMELINE</span>
+      </div>
+      <div class="chart-container" style="height: 310px;">
+        <canvas id="soilTelemetryChart"></canvas>
+      </div>
+    </div>
+
+    <div class="charts-split-grid">
+
+      <!-- NPK Nutrients vs Target Bar Chart -->
+      <div class="chart-card">
+        <div class="card-title">
+          <span>Soil Macronutrient Levels vs. Target</span>
+          <span style="font-size: 0.75rem; color: #10b981;">BAR COMPARISON</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="npkBarChart"></canvas>
+        </div>
+      </div>
+
+      <!-- NPK Proportion Doughnut Chart -->
+      <div class="chart-card">
+        <div class="card-title">
+          <span>Soil NPK Nutrient Ratio Distribution</span>
+          <span style="font-size: 0.75rem; color: #8b5cf6;">PROPORTION (N:P:K)</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="npkRatioChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+
+
+  <!-- Application Logic & Web Serial API Client -->
+  <script>
+    // System State Variables
+    let port = null;
+    let reader = null;
+    let keepReading = false;
+    let soundEnabled = true;
+
+    let telemetryHistory = [];
+    const maxDataPoints = 25;
+
+    // Audio Alert Synthesizer
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq = 880, duration = 0.15) {
+      if (!soundEnabled) return;
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        console.warn("Audio error:", e);
+      }
+    }
+
+    // Initialize Chart.js
+    const ctx = document.getElementById('soilTelemetryChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Moisture (%)',
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+            data: [],
+            yAxisID: 'yMoist',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3
+          },
+          {
+            label: 'Nitrogen (N)',
+            borderColor: '#10b981',
+            backgroundColor: 'transparent',
+            data: [],
+            yAxisID: 'yNutrients',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3
+          },
+          {
+            label: 'Phosphorus (P)',
+            borderColor: '#f59e0b',
+            backgroundColor: 'transparent',
+            data: [],
+            yAxisID: 'yNutrients',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3
+          },
+          {
+            label: 'Potassium (K)',
+            borderColor: '#8b5cf6',
+            backgroundColor: 'transparent',
+            data: [],
+            yAxisID: 'yNutrients',
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#64748b', font: { size: 10 } }
+          },
+          yMoist: {
+            type: 'linear',
+            position: 'left',
+            min: 0,
+            max: 100,
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#06b6d4', callback: v => v + '%' }
+          },
+          yNutrients: {
+            type: 'linear',
+            position: 'right',
+            min: 0,
+            grid: { drawOnChartArea: false },
+            ticks: { color: '#94a3b8', callback: v => v + ' mg' }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: '#cbd5e1', font: { size: 11 }, boxWidth: 12 }
+          }
+        }
+      }
+    });
+
+    // Initialize NPK Bar Chart (Macronutrients vs Target Baselines)
+    const barCtx = document.getElementById('npkBarChart').getContext('2d');
+    const npkBarChart = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Nitrogen (N)', 'Phosphorus (P)', 'Potassium (K)'],
+        datasets: [
+          {
+            label: 'Current Level (mg/kg)',
+            data: [0, 0, 0],
+            backgroundColor: ['#10b981', '#f59e0b', '#8b5cf6'],
+            borderRadius: 6,
+            barPercentage: 0.6
+          },
+          {
+            label: 'Agronomic Baseline',
+            data: [20, 15, 30],
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            borderColor: 'rgba(255, 255, 255, 0.25)',
+            borderWidth: 1,
+            borderRadius: 6,
+            barPercentage: 0.6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: '#cbd5e1', font: { size: 11, weight: '600' } }
+          },
+          y: {
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#94a3b8', callback: v => v + ' mg' },
+            beginAtZero: true
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: '#cbd5e1', font: { size: 10 }, boxWidth: 10 }
+          }
+        }
+      }
+    });
+
+    // Initialize NPK Ratio Doughnut Chart (Proportional Composition)
+    const ratioCtx = document.getElementById('npkRatioChart').getContext('2d');
+    const npkRatioChart = new Chart(ratioCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Nitrogen (N)', 'Phosphorus (P)', 'Potassium (K)'],
+        datasets: [{
+          data: [1, 1, 1],
+          backgroundColor: ['#10b981', '#f59e0b', '#8b5cf6'],
+          borderColor: '#121b2a',
+          borderWidth: 3,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        cutout: '62%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#cbd5e1', font: { size: 11 }, padding: 12, boxWidth: 12 }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const val = context.raw || 0;
+                const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                return ` ${context.label}: ${val} mg/kg (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Theme Management & Dynamic Chart Synchronization
+    function applyThemeToCharts(isLight) {
+      const gridColor = isLight ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.05)';
+      const tickColor = isLight ? '#475569' : '#94a3b8';
+      const headingColor = isLight ? '#0f172a' : '#cbd5e1';
+      const doughnutBorder = isLight ? '#ffffff' : '#121b2a';
+      const baselineBg = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.1)';
+      const baselineBorder = isLight ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.25)';
+
+      // 1. Rolling Timeline Line Chart
+      if (typeof chart !== 'undefined' && chart) {
+        chart.options.scales.x.grid.color = gridColor;
+        chart.options.scales.x.ticks.color = tickColor;
+        chart.options.scales.yMoist.grid.color = gridColor;
+        chart.options.scales.yNutrients.ticks.color = tickColor;
+        chart.options.plugins.legend.labels.color = headingColor;
+        chart.update('none');
+      }
+
+      // 2. NPK Macronutrients Bar Chart
+      if (typeof npkBarChart !== 'undefined' && npkBarChart) {
+        npkBarChart.data.datasets[1].backgroundColor = baselineBg;
+        npkBarChart.data.datasets[1].borderColor = baselineBorder;
+        npkBarChart.options.scales.x.ticks.color = headingColor;
+        npkBarChart.options.scales.y.grid.color = gridColor;
+        npkBarChart.options.scales.y.ticks.color = tickColor;
+        npkBarChart.options.plugins.legend.labels.color = headingColor;
+        npkBarChart.update('none');
+      }
+
+      // 3. NPK Proportions Doughnut Chart
+      if (typeof npkRatioChart !== 'undefined' && npkRatioChart) {
+        npkRatioChart.data.datasets[0].borderColor = doughnutBorder;
+        npkRatioChart.options.plugins.legend.labels.color = headingColor;
+        npkRatioChart.update('none');
+      }
+    }
+
+    function setTheme(theme) {
+      const isLight = theme === 'light';
+      const btn = document.getElementById('btnThemeToggle');
+      const icon = document.getElementById('themeIcon');
+      const text = document.getElementById('themeText');
+
+      if (isLight) {
+        document.body.classList.add('light-theme');
+        if (icon) icon.textContent = '🌙';
+        if (text) text.textContent = 'Dark Mode';
+        if (btn) btn.setAttribute('title', 'Switch to Dark Mode');
+      } else {
+        document.body.classList.remove('light-theme');
+        if (icon) icon.textContent = '☀️';
+        if (text) text.textContent = 'Light Mode';
+        if (btn) btn.setAttribute('title', 'Switch to Light Mode');
+      }
+
+      try {
+        localStorage.setItem('dashboard_theme', theme);
+      } catch (e) {
+        console.warn("localStorage not accessible", e);
+      }
+
+      applyThemeToCharts(isLight);
+    }
+
+    const btnThemeToggle = document.getElementById('btnThemeToggle');
+    if (btnThemeToggle) {
+      btnThemeToggle.addEventListener('click', () => {
+        const isCurrentLight = document.body.classList.contains('light-theme');
+        setTheme(isCurrentLight ? 'dark' : 'light');
+      });
+    }
+
+    // Restore saved theme on initialization
+    try {
+      const savedTheme = localStorage.getItem('dashboard_theme') || 'dark';
+      if (savedTheme === 'light') {
+        setTheme('light');
+      }
+    } catch (e) {
+      console.warn("Could not retrieve saved theme", e);
+    }
+
+    // Logging helper
+    function logTerminal(message, type = 'info') {
+      const win = document.getElementById('terminalWindow');
+      if (!win) return;
+      const div = document.createElement('div');
+      div.className = `terminal-entry ${type}`;
+      const time = new Date().toLocaleTimeString();
+      div.textContent = `[${time}] ${message}`;
+      win.appendChild(div);
+      win.scrollTop = win.scrollHeight;
+    }
+
+    // Parse incoming Serial Data
+    // Pattern 1: CSV Payload: "ID:PROBE_01,AREA:Zone_A,M:37,N:24,P:103,K:96,ALERT:NONE,PKT:88"
+    function processSerialLine(rawLine) {
+      const line = rawLine.trim();
+      if (!line) return;
+
+      logTerminal(line, line.includes('TX') ? 'tx' : line.includes('ALERT') ? 'alert' : 'info');
+
+      if (line.includes('ID:') && line.includes('M:') && line.includes('N:')) {
+        parseCSVTelemetry(line);
+      } else if (line.startsWith('Moist:')) {
+        // Also capture direct LCD print if present
+        document.getElementById('lcdLine1').textContent = padString(line, 16);
+      }
+    }
+
+    function parseCSVTelemetry(csvString) {
+      try {
+        const parts = csvString.split(',');
+        const data = {};
+        parts.forEach(p => {
+          const [key, val] = p.split(':');
+          if (key && val) data[key.trim()] = val.trim();
+        });
+
+        const moist = parseInt(data['M']) || 0;
+        const n = parseInt(data['N']) || 0;
+        const p = parseInt(data['P']) || 0;
+        const k = parseInt(data['K']) || 0;
+        const alertMsg = data['ALERT'] || 'NONE';
+        const pkt = parseInt(data['PKT']) || 0;
+        const probeId = data['ID'] || 'PROBE_01';
+        const area = data['AREA'] || 'Zone_A';
+
+        // 1. Update Hero Cards & Badges
+        document.getElementById('probeIdVal').textContent = probeId;
+        document.getElementById('zoneVal').textContent = area;
+        document.getElementById('pktCountVal').textContent = pkt;
+        
+        const isAlert = alertMsg !== 'NONE';
+        const healthEl = document.getElementById('healthVal');
+        healthEl.textContent = isAlert ? alertMsg : 'OPTIMAL';
+        healthEl.style.color = isAlert ? '#ef4444' : '#34d399';
+
+        // 2. Update Metric Numbers
+        document.getElementById('moistNum').textContent = moist;
+        document.getElementById('nNum').textContent = n;
+        document.getElementById('pNum').textContent = p;
+        document.getElementById('kNum').textContent = k;
+
+        // 3. Update Metric Badges
+        updateBadge('moistBadge', moist < 20 ? 'DRY' : moist > 80 ? 'WET' : 'NORMAL', moist >= 20 && moist <= 80);
+        updateBadge('nBadge', n >= 20 ? 'OPTIMAL' : 'LOW', n >= 20);
+        updateBadge('pBadge', p >= 15 ? 'OPTIMAL' : 'LOW', p >= 15);
+        updateBadge('kBadge', k >= 30 ? 'OPTIMAL' : 'LOW', k >= 30);
+
+        // 4. Update LCD Simulator (Exact replica of hardware display!)
+        // Line 1: "Moist: 37% [OK]TX"
+        const statusFlag = isAlert ? '[!]' : '[OK]';
+        const l1 = `Moist:${String(moist).padStart(2, ' ')}% ${statusFlag}TX`;
+        // Line 2: "N:24  P:103 K:96"
+        const l2 = `N:${String(n).padEnd(3, ' ')} P:${String(p).padEnd(3, ' ')} K:${String(k).padEnd(3, ' ')}`;
+
+        document.getElementById('lcdLine1').textContent = padString(l1, 16);
+        document.getElementById('lcdLine2').textContent = padString(l2, 16);
+        document.getElementById('loraRfIndicator').textContent = "LoRa Radio: BROADCASTING (TX)";
+        document.getElementById('loraRfIndicator').style.color = "#34d399";
+
+        // 5. Update Advisory Banner
+        updateAdvisory(moist, n, p, k, alertMsg);
+
+        // 6. Update Real-time Chart
+        const timeLabel = new Date().toLocaleTimeString().split(' ')[0];
+        chart.data.labels.push(timeLabel);
+        chart.data.datasets[0].data.push(moist);
+        chart.data.datasets[1].data.push(n);
+        chart.data.datasets[2].data.push(p);
+        chart.data.datasets[3].data.push(k);
+
+        if (chart.data.labels.length > maxDataPoints) {
+          chart.data.labels.shift();
+          chart.data.datasets.forEach(ds => ds.data.shift());
+        }
+        chart.update();
+
+        // 6B. Update NPK Comparison Bar Chart
+        npkBarChart.data.datasets[0].data = [n, p, k];
+        npkBarChart.update();
+
+        // 6C. Update NPK Ratio Doughnut Chart
+        const totalNutrients = n + p + k;
+        if (totalNutrients > 0) {
+          npkRatioChart.data.datasets[0].data = [n, p, k];
+        } else {
+          npkRatioChart.data.datasets[0].data = [1, 1, 1];
+        }
+        npkRatioChart.update();
+
+        // 7. Store in telemetry history for CSV export
+        telemetryHistory.push({
+          timestamp: new Date().toISOString(),
+          probeId,
+          area,
+          moisture: moist,
+          nitrogen: n,
+          phosphorus: p,
+          potassium: k,
+          alert: alertMsg,
+          packet: pkt
+        });
+
+        // Audio feedback on transmission or alert
+        if (isAlert) {
+          playBeep(440, 0.25); // Warning tone
+        } else {
+          playBeep(880, 0.08); // Normal pleasant chirp
+        }
+
+      } catch (err) {
+        console.error("Parse error:", err);
+      }
+    }
+
+    function padString(str, len) {
+      return (str + ' '.repeat(len)).slice(0, len);
+    }
+
+    function updateBadge(id, text, isGood) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = `metric-badge ${isGood ? 'badge-optimal' : 'badge-alert'}`;
+    }
+
+    function updateAdvisory(moist, n, p, k, alertMsg) {
+      const titleEl = document.getElementById('advisoryTitle');
+      const descEl = document.getElementById('advisoryDesc');
+
+      if (alertMsg.includes('DRY')) {
+        titleEl.textContent = "Advisory: Soil is Dry (Irrigation Required)";
+        titleEl.style.color = "#f59e0b";
+        descEl.textContent = "Soil moisture level is below the minimum 20% agronomic threshold. Immediate irrigation is recommended to prevent permanent crop wilting.";
+      } else if (alertMsg.includes('WET')) {
+        titleEl.textContent = "Advisory: Soil Waterlogged (High Moisture)";
+        titleEl.style.color = "#06b6d4";
+        descEl.textContent = "Soil moisture exceeds 80%. Suspend irrigation to avoid root hypoxia, oxygen depletion, and fungal root-rot development.";
+      } else if (alertMsg.includes('LOW_NPK')) {
+        titleEl.textContent = "Advisory: Soil Nutrient Depleted";
+        titleEl.style.color = "#ef4444";
+        descEl.textContent = `Nutrient deficiency detected (N: ${n}, P: ${p}, K: ${k} mg/kg). Targeted fertilizer supplementation is recommended for optimal yield.`;
+      } else {
+        titleEl.textContent = "Agronomic Status: Optimal Conditions";
+        titleEl.style.color = "#34d399";
+        descEl.textContent = "Moisture and soil macronutrients (NPK) are well balanced. Ideal vegetative growing environment.";
+      }
+
+      // Update Spectrum Slider
+      const marker = document.getElementById('spectrumMarker');
+      const spectText = document.getElementById('spectrumMoistPercent');
+      if (marker && spectText) {
+        const clampedMoist = Math.min(100, Math.max(0, moist));
+        marker.style.left = clampedMoist + '%';
+        spectText.textContent = `Current: ${moist}%`;
+
+        if (moist < 20) {
+          marker.style.borderColor = '#ef4444';
+          marker.style.boxShadow = '0 0 12px rgba(239, 68, 68, 0.8)';
+          spectText.style.color = '#ef4444';
+        } else if (moist > 80) {
+          marker.style.borderColor = '#06b6d4';
+          marker.style.boxShadow = '0 0 12px rgba(6, 182, 212, 0.8)';
+          spectText.style.color = '#06b6d4';
+        } else {
+          marker.style.borderColor = '#10b981';
+          marker.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.8)';
+          spectText.style.color = '#10b981';
+        }
+      }
+
+      // Update Decision Action Chips
+      const irrChip = document.getElementById('irrigationChip');
+      const fertChip = document.getElementById('fertilizerChip');
+      const aerChip = document.getElementById('aerationChip');
+
+      if (irrChip) {
+        if (moist < 20) {
+          irrChip.textContent = "IRRIGATION NEEDED";
+          irrChip.style.color = "#ef4444";
+        } else if (moist > 80) {
+          irrChip.textContent = "SUSPEND WATER";
+          irrChip.style.color = "#06b6d4";
+        } else {
+          irrChip.textContent = "NOT NEEDED";
+          irrChip.style.color = "#34d399";
+        }
+      }
+
+      if (fertChip) {
+        if (alertMsg.includes('LOW_NPK') || n < 20 || p < 15 || k < 30) {
+          fertChip.textContent = "APPLY FERTILIZER";
+          fertChip.style.color = "#ef4444";
+        } else {
+          fertChip.textContent = "ADEQUATE";
+          fertChip.style.color = "#34d399";
+        }
+      }
+
+      if (aerChip) {
+        if (moist > 80) {
+          aerChip.textContent = "RISK OF HYPOXIA";
+          aerChip.style.color = "#06b6d4";
+        } else {
+          aerChip.textContent = "HEALTHY";
+          aerChip.style.color = "#34d399";
+        }
+      }
+    }
+
+    // Web Serial Connection Implementation
+    const btnConnect = document.getElementById('btnConnect');
+
+    btnConnect.addEventListener('click', async () => {
+      if (!('serial' in navigator)) {
+        alert("Web Serial API is not supported on this browser. Please open this file in Google Chrome, Microsoft Edge, or Opera.");
+        return;
+      }
+
+      if (port) {
+        // Disconnect
+        keepReading = false;
+        if (reader) await reader.cancel();
+        await port.close();
+        port = null;
+        btnConnect.textContent = "Connect to Probe (COM3)";
+        btnConnect.className = "btn btn-connect";
+        logTerminal("Disconnected from Serial Port.", "info");
+        return;
+      }
+
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+
+        btnConnect.textContent = "Disconnect Probe";
+        btnConnect.className = "btn btn-disconnect";
+        logTerminal("Successfully connected to ESP32 on Serial Port.", "info");
+
+        keepReading = true;
+        readSerialStream();
+      } catch (err) {
+        console.error("Connection failed:", err);
+        logTerminal(`Connection error: ${err.message}`, "alert");
+      }
+    });
+
+    async function readSerialStream() {
+      const textDecoder = new TextDecoderStream();
+      const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+      reader = textDecoder.readable.getReader();
+
+      let buffer = '';
+
+      try {
+        while (keepReading) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) {
+            buffer += value;
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // Keep partial line in buffer
+
+            for (const line of lines) {
+              processSerialLine(line);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Stream reading error:", err);
+      } finally {
+        reader.releaseLock();
+      }
+    }
+
+    // Export Telemetry to CSV
+    document.getElementById('btnExportCSV').addEventListener('click', () => {
+      if (telemetryHistory.length === 0) {
+        alert("No telemetry data captured yet! Connect to the probe first to record data.");
+        return;
+      }
+
+      let csv = "Timestamp,Probe_ID,Zone,Moisture_Percent,Nitrogen_mg_kg,Phosphorus_mg_kg,Potassium_mg_kg,Alert_Status,Packet_Sequence\n";
+      telemetryHistory.forEach(r => {
+        csv += `"${r.timestamp}","${r.probeId}","${r.area}",${r.moisture},${r.nitrogen},${r.phosphorus},${r.potassium},"${r.alert}",${r.packet}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Soil_Telemetry_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      logTerminal(`Exported ${telemetryHistory.length} data rows to CSV file.`, 'info');
+    });
+
+    // Sound toggle
+    document.getElementById('btnSoundToggle').addEventListener('click', (e) => {
+      soundEnabled = !soundEnabled;
+      e.target.textContent = soundEnabled ? "🔔 Sound: ON" : "🔕 Sound: OFF";
+    });
+
+    // Clear Terminal (safeguarded)
+    const btnClearTerm = document.getElementById('btnClearTerminal');
+    if (btnClearTerm) {
+      btnClearTerm.addEventListener('click', () => {
+        const win = document.getElementById('terminalWindow');
+        if (win) win.innerHTML = '';
+      });
+    }
+  </script>
+</body>
+</html>
