@@ -20,10 +20,10 @@
   // Capacitive Soil Moisture Sensor (HW-390) Real Soil Calibration
   // Tuned strictly for SOIL: In open air (ADC >= 800) = strictly 0%.
   // Saturated muddy soil (ADC <= 450) = 100%.
-  // Capacitive Soil Moisture Sensor (HW-390) Calibration (D34 / D35)
-  // In air: ADC >= 2150 (0%). In soil: ADC drops below 2150 down to ~950 (100%)
-  const int MOISTURE_DRY_ADC = 2150;  // Open air baseline (0%)
-  const int MOISTURE_WET_ADC = 950;   // Saturated wet soil baseline (100%)
+  // Capacitive Soil Moisture Sensor (HW-390) Calibration on GPIO 35
+  // Open air baseline: ADC >= 1950 (strictly 0%). Saturated wet soil: ADC <= 700 (100%)
+  const int MOISTURE_DRY_ADC = 1950;  // Open air baseline (0%)
+  const int MOISTURE_WET_ADC = 700;   // Saturated wet soil baseline (100%)
 
   // ==========================================
   // 2. HARDWARE PIN DEFINITIONS
@@ -103,24 +103,14 @@
     return 0;
   }
 
-  // High-precision ADC reading seamlessly supporting D34 or D35 on shield
+  // High-precision ADC reading strictly locked to GPIO 35 (Active sensor pin)
   int readSoilMoistureADC() {
-    int v34 = analogRead(34);
-    int v35 = analogRead(35);
+    activeMoisturePin = 35;
 
-    // Auto-select whichever pin has the active capacitive sensor signal (> 300)
-    if (v34 >= 300) {
-      activeMoisturePin = 34;
-    } else if (v35 >= 300) {
-      activeMoisturePin = 35;
-    } else {
-      activeMoisturePin = (v35 > v34) ? 35 : 34;
-    }
-
-    // Collect 24 samples from active pin
+    // Collect 24 samples from GPIO 35 with settle delay
     int samples[24];
     for (int i = 0; i < 24; i++) {
-      samples[i] = analogRead(activeMoisturePin);
+      samples[i] = analogRead(35);
       delay(3);
     }
 
@@ -144,8 +134,9 @@
   }
 
   // Convert raw ADC reading to calibrated soil moisture percentage (0 - 100%)
+  // In open air (ADC >= 1950) or unplugged (< 400): strictly 0%
   int calculateMoisturePercent(int rawADC) {
-    if (rawADC >= MOISTURE_DRY_ADC || rawADC < 200) {
+    if (rawADC >= MOISTURE_DRY_ADC || rawADC < 400) {
       return 0;
     }
     if (rawADC <= MOISTURE_WET_ADC) {
@@ -400,7 +391,7 @@
       cycleCount++;
 
       // ------------------------------------------
-      // A. READ SOIL MOISTURE (CALIBRATED LIVE REACTIVE + IN-SOIL LOCK)
+      // A. READ SOIL MOISTURE (STRICT 0% IN AIR, STEADY IN SOIL)
       // ------------------------------------------
       int rawMoistureADC = readSoilMoistureADC();
 
@@ -408,21 +399,20 @@
       static bool wasInSoil = false;
       int moisturePercent = 0;
 
-      // Determine if probe is in physical contact with soil:
-      // Open air reads >= 2200 ADC. In soil, reading drops below 2200 ADC.
-      bool inSoil = (rawMoistureADC < MOISTURE_DRY_ADC && rawMoistureADC >= 200);
+      // In open air: raw ADC is >= 1950 (air baseline ~2300) -> STRICTLY 0%
+      // In soil: raw ADC drops below 1950 (down to 700-1400)
+      bool inSoil = (rawMoistureADC < MOISTURE_DRY_ADC && rawMoistureADC >= 400);
 
       if (inSoil) {
         int liveCalculated = calculateMoisturePercent(rawMoistureADC);
 
         if (!wasInSoil) {
-          // Just entered soil: capture reading immediately!
+          // Just entered soil: lock reading immediately!
           lockedSoilPercent = liveCalculated;
           wasInSoil = true;
         } else {
-          // Probe remains in soil: prevent number jumping / jittering
-          // While in the same soil, ignore minor +/- 3% electronic noise (stay locked!)
-          // Only update if probe is moved to a new soil spot or watered (difference > 3%)
+          // While resting in soil: ignore minor +/- 3% noise to keep display steady
+          // Only update if probe is moved to a new soil spot or watered (diff > 3%)
           int change = abs(liveCalculated - lockedSoilPercent);
           if (change > 3) {
             lockedSoilPercent = liveCalculated;
@@ -430,7 +420,7 @@
         }
         moisturePercent = lockedSoilPercent;
       } else {
-        // Probe is NOT in soil (in open air / hinugot): AUTOMATIC 0%!
+        // Probe is in OPEN AIR / HINUGOT SA LUPA: STRICTLY 0%!
         wasInSoil = false;
         lockedSoilPercent = 0;
         moisturePercent = 0;
@@ -521,13 +511,11 @@
       Serial.println("========================================================");
       Serial.printf(" [CYCLE #%lu] Probe: %s | Location: %s | LoRa: %s\n", 
         cycleCount, PROBE_ID.c_str(), AREA_LABEL.c_str(), loraOnline ? "ONLINE" : "OFFLINE");
-      Serial.printf(" Soil Moisture : %3d%%  (Raw ADC: %d on GPIO %d) -> [%s] Status: %s\n", 
-                    moisturePercent, rawMoistureADC, activeMoisturePin,
+      Serial.printf(" Soil Moisture : %3d%%  (Raw ADC: %d on GPIO 35) -> [%s] Status: %s\n", 
+                    moisturePercent, rawMoistureADC,
                     inSoil ? "IN SOIL" : "OPEN AIR (0%)",
                     (moisturePercent < MOISTURE_MIN_THRESHOLD) ? "DRY" : 
                     (moisturePercent > MOISTURE_MAX_THRESHOLD) ? "WET" : "OPTIMAL");
-      Serial.printf(" [HARDWARE PIN CHECK] D34: %d | D35: %d | Active: GPIO %d\n",
-                    analogRead(34), analogRead(35), activeMoisturePin);
 
       if (npkValid) {
         Serial.printf(" Soil Nutrients: Nitrogen   = %3d mg/kg  (Threshold >= %d)\n", nitrogenVal, NITROGEN_MIN_THRESHOLD);
