@@ -21,9 +21,9 @@
   // Tuned strictly for SOIL: In open air (ADC >= 800) = strictly 0%.
   // Saturated muddy soil (ADC <= 450) = 100%.
   // Capacitive Soil Moisture Sensor (HW-390) Calibration on GPIO 35
-  // Open air baseline: ADC >= 1950 (strictly 0%). Saturated wet soil: ADC <= 700 (100%)
-  const int MOISTURE_DRY_ADC = 1950;  // Open air baseline (0%)
-  const int MOISTURE_WET_ADC = 700;   // Saturated wet soil baseline (100%)
+  // In air: ADC is around 700-950 (strictly 0%). In wet soil: ADC drops to 350-450 (100%)
+  const int MOISTURE_DRY_ADC = 680;   // Air threshold (strictly 0% when above this)
+  const int MOISTURE_WET_ADC = 400;   // Saturated wet soil baseline (100%)
 
   // ==========================================
   // 2. HARDWARE PIN DEFINITIONS
@@ -134,9 +134,9 @@
   }
 
   // Convert raw ADC reading to calibrated soil moisture percentage (0 - 100%)
-  // In open air (ADC >= 1950) or unplugged (< 400): strictly 0%
+  // In open air (ADC >= 680) or unplugged (< 200): strictly 0%
   int calculateMoisturePercent(int rawADC) {
-    if (rawADC >= MOISTURE_DRY_ADC || rawADC < 400) {
+    if (rawADC >= MOISTURE_DRY_ADC || rawADC < 200) {
       return 0;
     }
     if (rawADC <= MOISTURE_WET_ADC) {
@@ -399,9 +399,9 @@
       static bool wasInSoil = false;
       int moisturePercent = 0;
 
-      // In open air: raw ADC is >= 1950 (air baseline ~2300) -> STRICTLY 0%
-      // In soil: raw ADC drops below 1950 (down to 700-1400)
-      bool inSoil = (rawMoistureADC < MOISTURE_DRY_ADC && rawMoistureADC >= 400);
+      // In open air: raw ADC is >= 680 (table/air is 700-950) -> STRICTLY 0%
+      // In soil: raw ADC drops below 680 down towards 400
+      bool inSoil = (rawMoistureADC < MOISTURE_DRY_ADC && rawMoistureADC >= 200);
 
       if (inSoil) {
         int liveCalculated = calculateMoisturePercent(rawMoistureADC);
@@ -412,7 +412,6 @@
           wasInSoil = true;
         } else {
           // While resting in soil: ignore minor +/- 3% noise to keep display steady
-          // Only update if probe is moved to a new soil spot or watered (diff > 3%)
           int change = abs(liveCalculated - lockedSoilPercent);
           if (change > 3) {
             lockedSoilPercent = liveCalculated;
@@ -473,9 +472,9 @@
       if (lcd != nullptr) {
         lcd->clear();
 
-        // Line 1: Live Soil Moisture Percentage + LoRa indicator
+        // Line 1: Live Moisture % + Live Sensor Raw ADC + LoRa indicator
         lcd->setCursor(0, 0);
-        lcd->printf("Moist:%2d%% %s%s", moisturePercent, isAlert ? "[!]" : "[OK]", loraOnline ? "TX" : "  ");
+        lcd->printf("M:%2d%% ADC:%-4d %s", moisturePercent, rawMoistureADC, loraOnline ? "TX" : "  ");
 
         // Line 2: Live Nitrogen, Phosphorus, Potassium
         lcd->setCursor(0, 1);
