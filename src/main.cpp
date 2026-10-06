@@ -17,12 +17,9 @@
   const int PHOSPHORUS_MIN_THRESHOLD = 15;  // Min Phosphorus (mg/kg)
   const int POTASSIUM_MIN_THRESHOLD  = 30;  // Min Potassium (mg/kg)
 
-  // Capacitive Soil Moisture Sensor (HW-390) Real Soil Calibration
-  // Tuned strictly for SOIL: In open air (ADC >= 800) = strictly 0%.
-  // Saturated muddy soil (ADC <= 450) = 100%.
   // Capacitive Soil Moisture Sensor (HW-390) Calibration on GPIO 35
   // In air: ADC is around 700-950 (strictly 0%). In wet soil: ADC drops to 350-450 (100%)
-  const int MOISTURE_DRY_ADC = 680;   // Air threshold (strictly 0% when above this)
+  const int MOISTURE_DRY_ADC = 700;   // Air baseline (strictly 0% in open air)
   const int MOISTURE_WET_ADC = 400;   // Saturated wet soil baseline (100%)
 
   // ==========================================
@@ -472,9 +469,9 @@
       if (lcd != nullptr) {
         lcd->clear();
 
-        // Line 1: Live Moisture % + Live Sensor Raw ADC + LoRa indicator
+        // Line 1: Live Soil Moisture Percentage + LoRa indicator
         lcd->setCursor(0, 0);
-        lcd->printf("M:%2d%% ADC:%-4d %s", moisturePercent, rawMoistureADC, loraOnline ? "TX" : "  ");
+        lcd->printf("Moisture: %2d%% %s", moisturePercent, loraOnline ? "TX" : "  ");
 
         // Line 2: Live Nitrogen, Phosphorus, Potassium
         lcd->setCursor(0, 1);
