@@ -20,9 +20,9 @@
   // Capacitive Soil Moisture Sensor (HW-390) Real Soil Calibration
   // Tuned strictly for SOIL: In open air (ADC >= 800) = strictly 0%.
   // Saturated muddy soil (ADC <= 450) = 100%.
-  // Calibrated from live hardware telemetry: Open air ADC >= 2200 (0%), Saturated ADC <= 950 (100%)
-  const int MOISTURE_DRY_ADC = 2200;  // Open air / bone-dry baseline (0%)
-  const int MOISTURE_WET_ADC = 950;   // Saturated wet soil baseline (100%)
+  // Capacitive Soil Moisture Sensor (HW-390) Real Soil Calibration (GPIO 34)
+  const int MOISTURE_DRY_ADC = 2400;  // Open air baseline (0%)
+  const int MOISTURE_WET_ADC = 1000;  // Saturated wet soil baseline (100%)
 
   // ==========================================
   // 2. HARDWARE PIN DEFINITIONS
@@ -102,30 +102,14 @@
     return 0;
   }
 
-  // High-precision ADC reading with 24-sample trimmed-mean noise filtering
+  // High-precision ADC reading strictly locked to GPIO 34 (D34 on shield)
   int readSoilMoistureADC() {
-    // Detect active sensor pin once at boot and keep permanently locked
-    static bool pinLocked = false;
-    if (!pinLocked) {
-      uint8_t candidatePins[] = { 35, 34, 32, 33, 36, 39 };
-      int highestADC = 0;
-      uint8_t bestPin = 35;
-      for (int i = 0; i < 6; i++) {
-        int v = analogRead(candidatePins[i]);
-        if (v > highestADC) {
-          highestADC = v;
-          bestPin = candidatePins[i];
-        }
-      }
-      activeMoisturePin = bestPin;
-      pinLocked = true;
-      Serial.printf("[MOISTURE] Locked to sensor pin GPIO %d (ADC: %d)\n", activeMoisturePin, highestADC);
-    }
+    activeMoisturePin = MOISTURE_PIN; // Strictly GPIO 34
 
-    // Collect 24 samples from locked pin
+    // Collect 24 samples from GPIO 34
     int samples[24];
     for (int i = 0; i < 24; i++) {
-      samples[i] = analogRead(activeMoisturePin);
+      samples[i] = analogRead(MOISTURE_PIN);
       delay(3);
     }
 
@@ -270,6 +254,8 @@
   // 6. SYSTEM INITIALIZATION (SETUP)
   // ==========================================
   void setup() {
+    analogReadResolution(12);
+    analogSetAttenuation(ADC_11db);
     Serial.begin(115200);
     delay(1200);
 
@@ -524,13 +510,13 @@
       Serial.println("========================================================");
       Serial.printf(" [CYCLE #%lu] Probe: %s | Location: %s | LoRa: %s\n", 
         cycleCount, PROBE_ID.c_str(), AREA_LABEL.c_str(), loraOnline ? "ONLINE" : "OFFLINE");
-      Serial.printf(" Soil Moisture : %3d%%  (Raw ADC: %d on GPIO %d) -> [%s] Status: %s\n", 
-                    moisturePercent, rawMoistureADC, activeMoisturePin,
+      Serial.printf(" Soil Moisture : %3d%%  (Raw ADC: %d on GPIO 34) -> [%s] Status: %s\n", 
+                    moisturePercent, rawMoistureADC,
                     inSoil ? "IN SOIL" : "OPEN AIR (0%)",
                     (moisturePercent < MOISTURE_MIN_THRESHOLD) ? "DRY" : 
                     (moisturePercent > MOISTURE_MAX_THRESHOLD) ? "WET" : "OPTIMAL");
-      Serial.printf(" [PINS DEBUG] 35:%d | 34:%d | 32:%d | 33:%d | 36:%d | 39:%d\n",
-                    analogRead(35), analogRead(34), analogRead(32), analogRead(33), analogRead(36), analogRead(39));
+      Serial.printf(" [PIN 34 CHECK] Live ADC: %d (Dry: %d, Wet: %d)\n",
+                    rawMoistureADC, MOISTURE_DRY_ADC, MOISTURE_WET_ADC);
 
       if (npkValid) {
         Serial.printf(" Soil Nutrients: Nitrogen   = %3d mg/kg  (Threshold >= %d)\n", nitrogenVal, NITROGEN_MIN_THRESHOLD);
